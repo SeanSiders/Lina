@@ -110,12 +110,12 @@ class Node
         return data;
     }
 
-    void setLeft(const Node*& _left)
+    void setLeft(Node* _left)
     {
         left = _left;
     }
 
-    void setRight(const Node*& _right)
+    void setRight(Node* _right)
     {
         right = _right;
     }
@@ -275,7 +275,6 @@ class Tree
             }
         }
 
-
         return sourcePtr;
     }
 
@@ -293,28 +292,43 @@ class Tree
         if (pIsLeft) u = g->_right();
         else u = g->_left();
 
+        /*
         std::cout << "k : " << *k->_data() << (kIsLeft ? " is left\n" : " is right\n")
         << "p : " << *p->_data() << (pIsLeft ? " is left\n" : " is right\n")
-        << "g : " << *g->_data() << '\n'
-        << "u : " << *u->_data() << "\n\n";
+        << "g : " << *g->_data() << '\n';
+        if (u) std::cout << "u : " << *u->_data() << "\n\n";
 
         std::cin.get();
+        */
 
         //Uncle is null or black
         if (!u || !u->isRed())
         {
             if (!kIsLeft && !pIsLeft)
             {
-                //g left rotation
+                g->recolor();
+                p->recolor();
+                rotateLeft(g);
             }
             else if (kIsLeft && !pIsLeft)
             {
+                rotateRight(g->_right());
+                g->recolor();
+                k->recolor();
+                rotateLeft(g);
             }
             else if (kIsLeft && pIsLeft)
             {
+                g->recolor();
+                p->recolor();
+                rotateRight(g);
             }
             else
             {
+                rotateLeft(g->_left());
+                g->recolor();
+                k->recolor();
+                rotateRight(g);
             }
         }
 
@@ -325,6 +339,24 @@ class Tree
             u->recolor();
             if (g != this->root) g->recolor();
         }
+    }
+
+    void rotateRight(Node<T>*& root)
+    {
+        Node<T>* hold = root;
+        root = root->_left();
+        hold->setLeft(nullptr);
+        hold->setRight(root->_right());
+        root->setRight(hold);
+    }
+
+    void rotateLeft(Node<T>*& root)
+    {
+        Node<T>* hold = root;
+        root = root->_right();
+        hold->setRight(nullptr);
+        hold->setRight(root->_left());
+        root->setLeft(hold);
     }
 
     void displayInorder(Node<T>* root, std::ostream& out = std::cout) const
