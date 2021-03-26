@@ -2,7 +2,6 @@
 #define TABLE_HPP_
 
 #include <iostream>
-#include <memory>
 
 template <typename T>
 class Node;
@@ -34,24 +33,26 @@ class Node
 
     Node() : left(nullptr), right(nullptr), parent(nullptr), data(nullptr), color(RED) {}
 
+    Node(const T& source, Node* parent = nullptr) : left(nullptr), right(nullptr), parent(parent),  data(nullptr), color(RED)
+    {
+        data = new T(source);
+    }
+
+    Node(T*& source) : left(nullptr), right(nullptr), parent(nullptr), data(nullptr), color(RED)
+    {
+        data = source;
+    }
+
     ~Node()
     {
+        delete data;
         data = nullptr;
+
         delete left;
         delete right;
         left = nullptr;
         right = nullptr;
         parent = nullptr;
-    }
-
-    Node(const T& source) : left(nullptr), right(nullptr), parent(nullptr), data(nullptr), color(RED)
-    {
-        data = std::make_shared<T>(source);
-    }
-
-    Node(std::shared_ptr<T>& source) : left(nullptr), right(nullptr), parent(nullptr), data(nullptr), color(RED)
-    {
-        data = source;
     }
 
     //True if |other| is less than this node's data
@@ -105,7 +106,12 @@ class Node
         return right;
     }
 
-    std::shared_ptr<T> _data()
+    Node*& _parent()
+    {
+        return parent;
+    }
+
+    T* _data()
     {
         return data;
     }
@@ -128,7 +134,7 @@ class Node
     //Determine whether |source| belongs as a left child or right child
     //kIsLeft is true if |source| is the left child
     //Allocate and return a shared pointer to the data
-    std::shared_ptr<T> insert(const T& source, bool& kIsLeft)
+    T* insert(const T& source, bool& kIsLeft)
     {
         if (source < *data)
         {
@@ -144,25 +150,20 @@ class Node
         return right->_data();
     }
 
-    //Assign children's parent pointers to this node
-    void update()
-    {
-        if (left)
-        {
-            left->parent = this;
-        }
-
-        if (right)
-        {
-            right->parent = this;
-        }
-    }
-
-    //private:
+    private:
+    //The left child of this node
     Node* left;
+
+    //The right child of this node
     Node* right;
+
+    //This node's parent
     Node* parent;
-    std::shared_ptr<T> data;
+
+    //The data this node manages
+    T* data;
+
+    //The color of this node (RED or BLACK)
     RedBlack color;
 };
 
@@ -184,7 +185,7 @@ class Tree
         root = nullptr;
     }
 
-    std::shared_ptr<T> insert(const T& source)
+    T* insert(const T& source)
     {
         //1) Empty Tree
         if (!root)
@@ -197,9 +198,10 @@ class Tree
             return root->_data();
         }
 
-        bool kIsLeft = false;
-        bool updated = false;
-        return insert(root, source, kIsLeft, updated);
+        bool path[2] = {false, false};
+        Node<T>* parent = nullptr;
+
+        return insert(root, source, path, parent);
     }
 
     void displayInorder(std::ostream& out = std::cout) const
@@ -218,147 +220,192 @@ class Tree
         levelDisplay(root);
     }
 
+    bool isBalanced() const
+    {
+        if (!root) return true;
+        int leftHeight = height(root->_left());
+        int rightHeight = height(root->_right());
+        std::cout << "L HEIGHT : " << leftHeight << "\nR HEIGHT : " << rightHeight << "\n\n";
+        int difference = (leftHeight - rightHeight);
+        if (difference < 0) difference *= -1;
+
+        return difference <= 1;
+    }
+
     private:
     Node<T>* root;
     size_t nodeCount;
 
-    //Insert |source| at the leaf
-    //Recolor and rotate nodes as needed to keep the tree balanced
-    std::shared_ptr<T> insert(Node<T>*& root, const T& source, bool& kIsLeft, bool& updated)
-    {
-        //Insert from the parent of |k|
-        if (!root) return nullptr;
-        
-        std::shared_ptr<T> sourcePtr;
+    //Traverse with |root| to the null leaf where |source| belongs
+    //Allocate and set the new node's |parent|
+    //Make the necessary mutations to the tree to remain balanced
 
-        //|source| belongs in the left subtree
+    //|path| contains information for |root| to grand child
+    //true = left : false = right
+    //index 0 : child path
+    //index 1 : grandchild path
+
+    //Return a pointer to the new data
+    T* insert(Node<T>*& root, const T& source, bool path[2], Node<T>*& parent)
+    {
+        //At the null leaf
+        if (!root)
+        {
+            //Allocate the new node with |source|
+            root = new Node<T>(source);
+            return root->_data();
+        }
+
+        //The pointer to return
+        T* sourceptr = nullptr;
+
+        //If |source| is less than root's data, go left
         if (root->lessThan(source))
         {
-            if (!root->_left())
+            sourceptr = insert(root->_left(), source, path, parent);
+
+            //|root| is now the parent of |x| : set |parent| and |path|
+            if (!parent)
             {
-                kIsLeft = true;
-                root->_left() = new Node<T>(source);
-
-                return root->_left()->_data();
+                path[0] = true;
+                parent = root;
             }
-
-            else sourcePtr = insert(root->_left(), source, kIsLeft, updated);
-
-            if (!updated)
-            {
-                Node<T>* p = root->_left();
-                Node<T>* k = (kIsLeft ? p->_left() : p->_right());
-                updateTree(k, p, root, kIsLeft, true);
-                updated = true;
-            }
-        }
-
-        //|source| belongs in the right subtree
-        else
-        {
-            if (!root->_right())
-            {
-                kIsLeft = false;
-                root->_right() = new Node<T>(source);
-
-                return root->_right()->_data();
-            }
-
-            else sourcePtr = insert(root->_right(), source, kIsLeft, updated);
-
-            if (!updated)
-            {
-                Node<T>* p = root->_right();
-                Node<T>* k = (kIsLeft ? p->_left() : p->_right());
-                updateTree(k, p, root, kIsLeft, false);
-                updated = true;
-            }
-        }
-
-        return sourcePtr;
-    }
-
-    //k : the newly inserted node
-    //p : k's parent
-    //g : k's grandparent & p's parent
-    void updateTree(Node<T>*& k, Node<T>*& p, Node<T>*& g, const bool kIsLeft, const bool pIsLeft)
-    {
-        //2) Parent is black, or the true root
-        if (!p->isRed() || !g) return;
-
-        //The uncle of |k|
-        Node<T>* u;
-
-        if (pIsLeft) u = g->_right();
-        else u = g->_left();
-
-        /*
-        std::cout << "k : " << *k->_data() << (kIsLeft ? " is left\n" : " is right\n")
-        << "p : " << *p->_data() << (pIsLeft ? " is left\n" : " is right\n")
-        << "g : " << *g->_data() << '\n';
-        if (u) std::cout << "u : " << *u->_data() << "\n\n";
-
-        std::cin.get();
-        */
-
-        //Uncle is null or black
-        if (!u || !u->isRed())
-        {
-            if (!kIsLeft && !pIsLeft)
-            {
-                g->recolor();
-                p->recolor();
-                rotateLeft(g);
-            }
-            else if (kIsLeft && !pIsLeft)
-            {
-                rotateRight(g->_right());
-                g->recolor();
-                k->recolor();
-                rotateLeft(g);
-            }
-            else if (kIsLeft && pIsLeft)
-            {
-                g->recolor();
-                p->recolor();
-                rotateRight(g);
-            }
+            
+            //|root| is now the grandparent of |x| : set |path|
+            //Perform the necessary mutations
             else
             {
-                rotateLeft(g->_left());
-                g->recolor();
-                k->recolor();
-                rotateRight(g);
+                path[1] = true;
+                updateTree(root, path, parent);
             }
         }
 
-        //Uncle is red
+        //|source is greater than or equal to root's data, go right
         else
         {
-            p->recolor();
-            u->recolor();
-            if (g != this->root) g->recolor();
+            sourceptr = insert(root->_right(), source, path, parent);
+
+            //parent = 100 r
+            //grandparent = 93 r
+
+            //|root| is now the parent of |x| : set |parent| and |path|
+            if (!parent)
+            {
+                path[0] = false;
+                parent = root;
+            }
+            
+            //|root| is now the grandparent of |x| : set |path|
+            //Perform the necessary mutations
+            else
+            {
+                path[1] = false;
+                updateTree(root, path, parent);
+            }
         }
+
+        return sourceptr;
     }
 
-    void rotateRight(Node<T>*& root)
+    void updateTree(Node<T>*& grandparent, bool path[2], Node<T>*& parent)
     {
-        Node<T>* hold = root;
+        //Find |x| based on the |path|
+        Node<T>* x = (path[0] ? parent->_left() : parent->_right());
+
+        //If the parent of |x| is black, nothing needs to be done
+        if (!parent->isRed() || !x->isRed())
+        {
+            parent = nullptr;
+            return;
+        }
+
+        //Find the uncle of |x| based of |path| to |parent|
+        Node<T>* uncle = (path[1] ? grandparent->_right() : grandparent->_left());
+
+        //If |uncle| of |x| is null or black
+        if (!uncle || !uncle->isRed())
+        {
+            //path to |x| is left->left
+            if (path[1] && path[0])
+            {
+                grandparent->recolor();
+                parent->recolor();
+                rotateRight(grandparent);
+            }
+
+            //path to |x| is right->left
+            else if (!path[1] && path[0])
+            {
+                rotateRight(grandparent->_right());
+                grandparent->recolor();
+                grandparent->_right()->recolor();
+                rotateLeft(grandparent);
+            }
+
+            //path to |x| is right->right
+            else if (!path[1] && !path[0])
+            {
+                grandparent->recolor();
+                parent->recolor();
+                rotateLeft(grandparent);
+            }
+
+            //path to |x| is left->right
+            else
+            {
+                rotateLeft(grandparent->_left());
+                grandparent->recolor();
+                grandparent->_left()->recolor();
+                rotateRight(grandparent);
+            }
+        }
+
+        //|uncle| of |x| is red
+        else
+        {
+            parent->recolor();
+            uncle->recolor();
+
+            //Only recolor |grandparent| if it is not the true root
+            if (grandparent != this->root) grandparent->recolor();
+        }
+
+        //|grandparent| is now the new |x|
+        //The new parent must be found
+        parent = nullptr;
+    }
+
+    static void rotateRight(Node<T>*& root)
+    {
+        //Hold onto the root
+        Node<T>* newRight = root;
+
+        //Push up the left child as the new root
         root = root->_left();
-        hold->setLeft(nullptr);
-        hold->setRight(root->_right());
-        root->setRight(hold);
+
+        //Adopt the new root's right subtree as the left subtree
+        newRight->setLeft(root->_right());
+
+        //Adopt the old root as the right child
+        root->setRight(newRight);
     }
 
-    void rotateLeft(Node<T>*& root)
+    static void rotateLeft(Node<T>*& root)
     {
-        Node<T>* hold = root;
+        //Hold onto the root
+        Node<T>* newLeft = root;
+
+        //Push up the right child as the new root
         root = root->_right();
-        hold->setRight(nullptr);
-        hold->setRight(root->_left());
-        root->setLeft(hold);
+
+        //Adopt the new root's left subtree as the right subtree
+        newLeft->setRight(root->_left());
+
+        //Adopt the old root as the left child
+        root->setLeft(newLeft);
     }
 
+    //Display all elements in the tree in order
     void displayInorder(Node<T>* root, std::ostream& out = std::cout) const
     {
         if (!root) return;
@@ -369,6 +416,8 @@ class Tree
         displayInorder(root->_right(), out);
     }
 
+    //Display the level, data, and color of each node in the tree
+    //Pre order traversal
     void levelDisplay(Node<T>* root, size_t level = 1) const
     {
         if (!root) return;
@@ -400,6 +449,13 @@ class Tree
 
         levelDisplay(root->_left(), level + 1);
         levelDisplay(root->_right(), level + 1);
+    }
+
+    int height(Node<T>* root) const
+    {
+        if (!root) return 0;
+
+        return 1 + std::max(height(root->_left()), height(root->_right()));
     }
 };
 

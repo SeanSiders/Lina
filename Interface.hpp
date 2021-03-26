@@ -2,7 +2,6 @@
 #define INTERFACE_HPP_
 
 #include <iostream>
-#include <memory>
 #include <sstream>
 #include "Matrix.hpp"
 #include "Tree.hpp"
