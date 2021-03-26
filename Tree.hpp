@@ -1,7 +1,19 @@
+/*
+RED BLACK TREE PROPERTIES
+- The root is always black
+- All null children are considered black
+- Children of red nodes are always black
+- Every simple downard path to a leaf contains the same number of black nodes
+- The longest path to a leaf is no more than twice the length of the shortest path to a leaf
+- Complexity is O(log N)
+*/
+
 #ifndef TABLE_HPP_
 #define TABLE_HPP_
 
 #include <iostream>
+
+//// FORWARD DECLARATIONS
 
 template <typename T>
 class Node;
@@ -9,40 +21,40 @@ class Node;
 template <typename T>
 class Tree;
 
+//// GLOBAL OVERLOAD 
+
 template <typename T>
 std::ostream& operator<<(std::ostream&, const Tree<T>&);
 
-template <typename T>
-std::ostream& operator<<(std::ostream&, const Node<T>&);
+//////// NODE COLOR BIT
 
-enum RedBlack
+//Every node in the tree contains a |ColorBit| which is either RED or BLACK
+enum ColorBit
 {
     RED,
     BLACK
 };
 
+//////// RED BLACK NODE
+
 template <typename T>
 class Node
 {
     public:
-    friend std::ostream& operator<<(std::ostream& out, const Node& node)
-    {
-        node.display(out);
-        return out;
-    }
 
-    Node() : left(nullptr), right(nullptr), parent(nullptr), data(nullptr), color(RED) {}
+    //////// CONSTRUCTORS 
 
-    Node(const T& source, Node* parent = nullptr) : left(nullptr), right(nullptr), parent(parent),  data(nullptr), color(RED)
+    Node() : left(nullptr), right(nullptr), data(nullptr), color(RED) {}
+
+    //Parameterized to take in the |source| data that this node will manage
+    Node(const T& source) : left(nullptr), right(nullptr), data(nullptr), color(RED)
     {
         data = new T(source);
     }
 
-    Node(T*& source) : left(nullptr), right(nullptr), parent(nullptr), data(nullptr), color(RED)
-    {
-        data = source;
-    }
+    //////// DESTRUCTOR 
 
+    //Recursive tree deallocation
     ~Node()
     {
         delete data;
@@ -52,8 +64,9 @@ class Node
         delete right;
         left = nullptr;
         right = nullptr;
-        parent = nullptr;
     }
+
+    //////// PUBLIC FUNCTIONS 
 
     //True if |other| is less than this node's data
     bool lessThan(const T& other) const
@@ -91,10 +104,19 @@ class Node
         color = (color == RED ? BLACK : RED);
     }
 
+    //Display the data of this node using |out|
     void display(std::ostream& out = std::cout) const
     {
         if (data) out << *data;
     }
+
+    //Display the color of this node (for debugging purposes)
+    void debugDisplayColor() const
+    {
+        std::cout << (color == RED ? "RED" : "BLK");
+    }
+
+    //////// GETTERS / SETTERS 
 
     Node*& _left()
     {
@@ -104,11 +126,6 @@ class Node
     Node*& _right()
     {
         return right;
-    }
-
-    Node*& _parent()
-    {
-        return parent;
     }
 
     T* _data()
@@ -126,58 +143,42 @@ class Node
         right = _right;
     }
 
-    void debugDisplayColor() const
-    {
-        std::cout << (color == RED ? "RED" : "BLK");
-    }
-
-    //Determine whether |source| belongs as a left child or right child
-    //kIsLeft is true if |source| is the left child
-    //Allocate and return a shared pointer to the data
-    T* insert(const T& source, bool& kIsLeft)
-    {
-        if (source < *data)
-        {
-            kIsLeft = true;
-            left = new Node(source);
-
-            return left->_data();
-        }
-
-        kIsLeft = false;
-        right = new Node(source);
-
-        return right->_data();
-    }
-
     private:
+
+    //////// DATA 
+
     //The left child of this node
     Node* left;
 
     //The right child of this node
     Node* right;
 
-    //This node's parent
-    Node* parent;
-
-    //The data this node manages
+    //The data this node manages (dynamically allocated)
     T* data;
 
     //The color of this node (RED or BLACK)
-    RedBlack color;
+    ColorBit color;
 };
 
 template <typename T>
 class Tree 
 {
     public:
+
+    //////// OPERATOR OVERLOAD 
+
+    //Display the tree in order from smallest key to largest key
     friend std::ostream& operator<<(std::ostream& out, const Tree& tree)
     {
         tree.displayInorder(out);
         return out;
     }
 
+    //////// CONSTRUCTOR
+
     Tree() : root(nullptr), nodeCount(0) {}
+
+    //////// DESTRUCTOR
 
     ~Tree()
     {
@@ -185,16 +186,22 @@ class Tree
         root = nullptr;
     }
 
+    //////// PUBLIC FUNCTIONS 
+
+    //Insert |source| into the tree
+    //Various mutations occur in the recursive call to maintain red-black tree properties
+    //Return a pointer to the inserted data
     T* insert(const T& source)
     {
-        //1) Empty Tree
+        //Increment node count
+        ++nodeCount;
+
+        //Empty Tree
         if (!root)
         {
+            //Allocate and make root black
             root = new Node<T>(source);
-
-            //Make root black
             root->recolor();
-            ++nodeCount;
             return root->_data();
         }
 
@@ -204,12 +211,19 @@ class Tree
         return insert(root, source, path, parent);
     }
 
+    //Return the number of nodes / items in the tree
+    size_t size() const
+    {
+        return nodeCount;
+    }
+
     void displayInorder(std::ostream& out = std::cout) const
     {
         displayInorder(root, out);
     }
 
-    void levelDisplay() const
+    //Display in preorder traversal showing the level, data, and color of each node
+    void debugDisplay() const
     {
         if (!root) return;
 
@@ -217,24 +231,20 @@ class Tree
         root->debugDisplayColor();
         std::cout << '\n';
 
-        levelDisplay(root);
-    }
-
-    bool isBalanced() const
-    {
-        if (!root) return true;
-        int leftHeight = height(root->_left());
-        int rightHeight = height(root->_right());
-        std::cout << "L HEIGHT : " << leftHeight << "\nR HEIGHT : " << rightHeight << "\n\n";
-        int difference = (leftHeight - rightHeight);
-        if (difference < 0) difference *= -1;
-
-        return difference <= 1;
+        debugDisplay(root);
     }
 
     private:
+
+    //////// DATA 
+
+    //The root of the tree
     Node<T>* root;
+
+    //The number of nodes / items in this tree
     size_t nodeCount;
+
+    //////// PRIVATE FUNCTIONS 
 
     //Traverse with |root| to the null leaf where |source| belongs
     //Allocate and set the new node's |parent|
@@ -307,9 +317,15 @@ class Tree
         return sourceptr;
     }
 
+    //|grandparent| : the current |root| in insert
+    //|path| : the path from |grandparent| to |x| : true = left / false = right
+    //|parent| the child of grandparent on the path to |x|
+    //This function is called every 3rd node in head recursion of the insert procedure
+    //Various cases are checked to evaluate whether the tree is still a proper red-black tree
+    //If not, the necessary mutations
     void updateTree(Node<T>*& grandparent, bool path[2], Node<T>*& parent)
     {
-        //Find |x| based on the |path|
+        //Find |x| based on the provided |path|
         Node<T>* x = (path[0] ? parent->_left() : parent->_right());
 
         //If the parent of |x| is black, nothing needs to be done
@@ -375,6 +391,7 @@ class Tree
         parent = nullptr;
     }
 
+    //Rotate |root| to the right
     static void rotateRight(Node<T>*& root)
     {
         //Hold onto the root
@@ -390,6 +407,7 @@ class Tree
         root->setRight(newRight);
     }
 
+    //Rotate |root| to the left
     static void rotateLeft(Node<T>*& root)
     {
         //Hold onto the root
@@ -405,7 +423,7 @@ class Tree
         root->setLeft(newLeft);
     }
 
-    //Display all elements in the tree in order
+    //Traverse the tree with |root| in order, displaying all items
     void displayInorder(Node<T>* root, std::ostream& out = std::cout) const
     {
         if (!root) return;
@@ -418,7 +436,7 @@ class Tree
 
     //Display the level, data, and color of each node in the tree
     //Pre order traversal
-    void levelDisplay(Node<T>* root, size_t level = 1) const
+    void debugDisplay(Node<T>* root, size_t level = 1) const
     {
         if (!root) return;
 
@@ -447,15 +465,8 @@ class Tree
         }
         else return;
 
-        levelDisplay(root->_left(), level + 1);
-        levelDisplay(root->_right(), level + 1);
-    }
-
-    int height(Node<T>* root) const
-    {
-        if (!root) return 0;
-
-        return 1 + std::max(height(root->_left()), height(root->_right()));
+        debugDisplay(root->_left(), level + 1);
+        debugDisplay(root->_right(), level + 1);
     }
 };
 
