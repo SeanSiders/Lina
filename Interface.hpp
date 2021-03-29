@@ -11,6 +11,8 @@ enum Commands
 {
     INVALID, //The command was invalid
     DEFINE, //The user wants to define a new variable
+    DISPLAY, //The user wants to display matrices
+    CLEAR, //The user wants to clear the screen
     QUIT //Terminate the program
 };
 
@@ -26,7 +28,11 @@ class Interface
 
     private:
     //The data structure that holds all defined matrices by their keys
-    //Tree<Matrix> matrixTree;
+    Tree<Matrix> matrixTree;
+
+    //The most recent matrix that has been referenced by the user
+    //Used for direct access, avoiding the need for retrieval from |matrixTree|
+    Matrix* recent;
 
     //Determine which command the user entered, return the respective |Commands|
     static Commands evaluateCommand(const std::string& command);
@@ -37,7 +43,7 @@ class Interface
     //Count the number of |columns| and |rows| in |matrixString|
     //Check that each entrie contains numeric expressions
     //Return false if any rows do not match the 1st row's column count, or an entrie is non-numeric
-    static bool validMatrixInput(const std::string& matrixString, size_t& rows, size_t& columns);
+    static bool validMatrixInput(std::string& matrixString, size_t& rows, size_t& columns);
 
     //Return true only if |c| contains a char that is in the pool of valid char input for a matrix entry
     //VALID ENTRIE CHARS
@@ -46,6 +52,12 @@ class Interface
 
     //Define a matrix as a particular key, insert it into the database
     void define(std::istringstream& stream);
+
+    //Either display all matrices or specified matrices by key as additional arguments in the |stream|
+    void display(std::istringstream& stream) const;
+
+    //Print 100 newline characters
+    void clearScreen() const;
 
     //Check if |key| is already bound to an existing matrix
     //If it is, ask whether the user wants to overwrite with a new matrix

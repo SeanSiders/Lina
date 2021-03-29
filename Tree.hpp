@@ -12,6 +12,7 @@ RED BLACK TREE PROPERTIES
 #define TABLE_HPP_
 
 #include <iostream>
+#include <fstream>
 
 //// FORWARD DECLARATIONS
 
@@ -25,6 +26,10 @@ class Tree;
 
 template <typename T>
 std::ostream& operator<<(std::ostream&, const Tree<T>&);
+
+//// GLOBAL EXTERNAL FILENAME
+
+const char FILENAME[] = "matrices.txt";
 
 //////// NODE COLOR BIT
 
@@ -52,6 +57,11 @@ class Node
         data = new T(source);
     }
 
+    Node(std::ifstream& inFile) : left(nullptr), right(nullptr), data(nullptr)
+    {
+        data = new T(inFile);
+    }
+
     //////// DESTRUCTOR 
 
     //Recursive tree deallocation
@@ -69,19 +79,22 @@ class Node
     //////// PUBLIC FUNCTIONS 
 
     //True if |other| is less than this node's data
-    bool lessThan(const T& other) const
+    template <typename K = T>
+    bool lessThan(const K& other) const
     {
-        return (data ? other < *data : false);
+        return (data ? *data > other : false);
     }
 
     //True if |other| is greater than this node's data
-    bool greaterThan(const T& other) const
+    template <typename K = T>
+    bool greaterThan(const K& other) const
     {
-        return (data ? other > *data : false);
+        return (data ? *data < other : false);
     }
 
     //True if this node's data is equal to |other|
-    bool equal(const T& other) const
+    template <typename K = T>
+    bool equal(const K& other) const
     {
         return (data ? *data == other : false);
     }
@@ -114,6 +127,15 @@ class Node
     void debugDisplayColor() const
     {
         std::cout << (color == RED ? "RED" : "BLK");
+    }
+
+    //Write the data in this node to |outFile|
+    void writeFile(std::ofstream& outFile) const
+    {
+        if (data) data->writeFile(outFile);
+
+        outFile << (left ? '1' : '0') << ' '
+        << (right ? '1' : '0') << '\n';
     }
 
     //////// GETTERS / SETTERS 
@@ -176,12 +198,37 @@ class Tree
 
     //////// CONSTRUCTOR
 
-    Tree() : root(nullptr), nodeCount(0) {}
+    Tree() : root(nullptr), nodeCount(0)
+    {
+        std::ifstream inFile(FILENAME);
+        if (inFile)
+        {
+            inFile >> nodeCount;
+
+            if (inFile.eof()) nodeCount = 0;
+            else readFile(root, inFile);
+
+            inFile.clear();
+            inFile.close();
+        }
+    }
 
     //////// DESTRUCTOR
 
     ~Tree()
     {
+        std::ofstream outFile;
+        outFile.open(FILENAME);
+
+        if (root)
+        {
+            outFile << nodeCount << ' ';
+            writeFile(root, outFile);
+        }
+
+        outFile.clear();
+        outFile.close();
+
         delete root;
         root = nullptr;
     }
@@ -209,6 +256,12 @@ class Tree
         Node<T>* parent = nullptr;
 
         return insert(root, source, path, parent);
+    }
+
+    template <typename K = T>
+    T* retrieve(const K& key) const
+    {
+        return retrieve(root, key);
     }
 
     //Return the number of nodes / items in the tree
@@ -269,7 +322,7 @@ class Tree
         //The pointer to return
         T* sourceptr = nullptr;
 
-        //If |source| is less than root's data, go left
+        //If |source| key is less than root's key, go left
         if (root->lessThan(source))
         {
             sourceptr = insert(root->_left(), source, path, parent);
@@ -290,13 +343,10 @@ class Tree
             }
         }
 
-        //|source is greater than or equal to root's data, go right
+        //|source| key is greater than root's key, go right
         else
         {
             sourceptr = insert(root->_right(), source, path, parent);
-
-            //parent = 100 r
-            //grandparent = 93 r
 
             //|root| is now the parent of |x| : set |parent| and |path|
             if (!parent)
@@ -423,6 +473,22 @@ class Tree
         root->setLeft(newLeft);
     }
 
+    template <typename K = T>
+    static T* retrieve(Node<T>* root, const K& key)
+    {
+        if (!root) return nullptr;
+
+        //|key| is less than root's key
+        if (root->lessThan(key)) return retrieve(root->_left(), key);
+
+        //|key| is greater than root's key
+        else if (root->greaterThan(key)) return retrieve(root->_right(), key);
+
+        //|key| is equal to root's key
+        //Data to retrieve was found
+        return root->_data();
+    }
+
     //Traverse the tree with |root| in order, displaying all items
     void displayInorder(Node<T>* root, std::ostream& out = std::cout) const
     {
@@ -467,6 +533,39 @@ class Tree
 
         debugDisplay(root->_left(), level + 1);
         debugDisplay(root->_right(), level + 1);
+    }
+
+    //Read in data from |inFile| which was sequentally saved from a previous run of this program
+    //The node and matrix read in from this file as well
+    static void readFile(Node<T>*& root, std::ifstream& inFile)
+    {
+        root = new Node<T>(inFile);
+
+        int hasLeft, hasRight;
+        inFile >> hasLeft;
+        inFile >> hasRight;
+
+        inFile.ignore(1, '\n');
+
+        //Only traverse if there is at least 1 child
+        if (hasLeft) readFile(root->_left(), inFile);
+        if (hasRight) readFile(root->_right(), inFile);
+    }
+
+    //Write all data into |outFile|
+    //Deallocate the entire tree after
+    //The node and matrix write out to this file as well
+    static void writeFile(Node<T>*& root, std::ofstream& outFile)
+    {
+        if (!root) return;
+
+        root->writeFile(outFile);
+
+        writeFile(root->_left(), outFile);
+        writeFile(root->_right(), outFile);
+
+        //delete root;
+        //root = nullptr;
     }
 };
 

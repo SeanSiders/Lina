@@ -1,6 +1,6 @@
 #include "Interface.hpp"
 
-Interface::Interface() {}
+Interface::Interface() : recent(nullptr) {}
 
 //Prompt the user for input
 //Branch to different parts of the program based on the input
@@ -28,6 +28,10 @@ bool Interface::run()
 
         case DEFINE : define(stream); break;
 
+        case DISPLAY : display(stream); break;
+
+        case CLEAR : clearScreen(); break;
+
         case QUIT : return false;
 
         default : break;
@@ -45,6 +49,10 @@ Commands Interface::evaluateCommand(const std::string& command)
     //Variable declaration
     if (("d" == command || "def" == command || "define" == command)) return DEFINE;
 
+    if (("disp" == command || "display" == command)) return DISPLAY;
+
+    if (("c" == command || "clear" == command)) return CLEAR;
+
     return INVALID;
 }
 
@@ -57,7 +65,7 @@ void Interface::invalidCommand(const std::string& command)
 //Count the number of |columns| and |rows| in |matrixString|
 //Check that each entrie contains numeric expressions
 //Return false if any rows do not match the 1st row's column count, or an entrie is non-numeric
-bool Interface::validMatrixInput(const std::string& matrixString, size_t& rows, size_t& columns)
+bool Interface::validMatrixInput(std::string& matrixString, size_t& rows, size_t& columns)
 { 
     //Whether or not the input is valid
     //This will be returned and break loops early if false
@@ -105,7 +113,11 @@ bool Interface::validMatrixInput(const std::string& matrixString, size_t& rows, 
         ++it;
     }
 
-    if (*(end - 1) != '\n') ++rows;
+    if (*(end - 1) != '\n')
+    {
+        matrixString += '\n';
+        ++rows;
+    }
 
     return isValid;
 }
@@ -141,31 +153,67 @@ void Interface::define(std::istringstream& stream)
 
         if (getMatrixInput(key, matrixString, rows, columns))
         {
-            //std::shared_ptr<Matrix> m = matrixTree.insert(Matrix(key, matrixString, rows, columns));
+            recent = matrixTree.insert(Matrix(key, matrixString, rows, columns));
             
-            /*
-            database.insert(std::pair<std::string, Matrix>(key, Matrix(matrixString, rows, columns)));
-            auto it = database.find("A");
-            std::cout << "\n\n\"" << key << "\" defined\n\n" << std::get<Matrix>(*it) << '\n';
-            */
+            if (recent) std::cout << "\n\n\"" << key << "\" defined\n\n";
         }
     }
 }
 
+//Either display all matrices or specified matrices by key as additional arguments in the |stream|
+void Interface::display(std::istringstream& stream) const
+{
+    //Display all
+    if (stream.eof()) std::cout << matrixTree;
+
+    //Extract the specified keys and display any that match a matrix in the |matrixTree|
+    else
+    {
+        std::string key;
+        Matrix* retrieved = nullptr;
+
+        while (stream >> key)
+        {
+            retrieved = matrixTree.retrieve<std::string>(key);
+            if (retrieved) std::cout << *retrieved << '\n';
+        }
+    }
+}
+
+//Print 100 newline characters
+void Interface::clearScreen() const
+{
+    for (size_t i = 0; i < 100; ++i) std::cout << '\n';
+}
+
 //Check if |key| is already bound to an existing matrix
 //If it is, ask whether the user wants to overwrite with a new matrix
-//If yes, return true
+//If the |key| is unique, return true, otherwise return false
 bool Interface::overwriteCheck(std::string& key)
 {
-    /*
-    if (database.count(key))
+    Matrix* retrieved = matrixTree.retrieve<std::string>(key);
+
+    //If a matrix was retrieved
+    if (retrieved)
     {
+        //Set the recent pointer
+        recent = retrieved;
+
+        std::string matrixString;
+        size_t rows;
+        size_t columns;
+
         std::cout << "The identifier \"" << key << "\" is already assigned to a matrix\n"
         << "Would you like to overwrite?";
 
-        return getYesNo();
+        if (getYesNo() && getMatrixInput(key, matrixString, rows, columns))
+        {
+            retrieved->overwrite(Matrix(key, matrixString, rows, columns));
+            std::cout << "\n\"" << key << "\" successfully overwritten\n\n";
+        }
+
+        return false;
     }
-    */
 
     return true;
 }

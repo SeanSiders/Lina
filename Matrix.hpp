@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <fstream>
 
 class Matrix;
 
@@ -12,15 +13,28 @@ class Matrix
 {
     public:
     friend std::ostream& operator<<(std::ostream& out, const Matrix& rhs);
+    bool operator<(const Matrix& rhs) const;
+    bool operator>(const Matrix& rhs) const;
+    bool operator<(const std::string& rhs) const;
+    bool operator>(const std::string& rhs) const;
     Matrix& operator=(const Matrix& rhs);
 
     Matrix();
     Matrix(const Matrix& source);
+    Matrix(std::ifstream& inFile);
     ~Matrix();
 
     //Allocate |matrix| to the dimensions supplied with |rows| and |columns|
     //Populate the |matrix| with the numeric entries in |matrixString|
     Matrix(const std::string& identifier, const std::string& matrixString, const size_t& rows, const size_t& columns);
+
+    //Display the matrix |identifier| followed by the |matrixString|
+    void display(std::ostream& out = std::cout) const;
+
+    //Clear the current matrix and make a copy of |source| into this matrix
+    void overwrite(const Matrix& source);
+
+    void writeFile(std::ofstream& outFile) const;
 
     private:
     //The user-defined identifier that is related to this matrix
@@ -39,8 +53,16 @@ class Matrix
     //The matrix that contains all numeric values
     double**  matrix;
 
-    void display(std::ostream& out) const;
+    //Allocate the |matrix| to the dimensions of |rows| x |columns|
+    //Read in entries from the provided |stream|
+    void readIn(std::istream& stream);
+
+    //Make a copy of |source| into this matrix
     void copy(const Matrix& source);
+
+    //Set all members to initial values
+    //Deallocate the |matrix|
+    void clear();
 };
 
 #endif //MATRIX_HPP_

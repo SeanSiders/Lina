@@ -3,7 +3,6 @@
 
 int main()
 {
-    /*
     std::cout << "\n\nLina -- (Linear Algebra Calculator)\n\n";
 
     Interface interface;
@@ -14,7 +13,6 @@ int main()
         running = interface.run();
 
     } while (running);
-    */
 
     return 0;
 }
