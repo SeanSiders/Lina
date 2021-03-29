@@ -7,12 +7,15 @@
 
 class Matrix;
 
+//// GLOBAL OPERATOR OVERLOADS
 std::ostream& operator<<(std::ostream& out, const Matrix& rhs);
+std::ofstream& operator<<(std::ofstream& outFile, const Matrix& rhs);
 
 class Matrix
 {
     public:
     friend std::ostream& operator<<(std::ostream& out, const Matrix& rhs);
+    friend std::ofstream& operator<<(std::ofstream& outFile, const Matrix& rhs);
     bool operator<(const Matrix& rhs) const;
     bool operator>(const Matrix& rhs) const;
     bool operator<(const std::string& rhs) const;

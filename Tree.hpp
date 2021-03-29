@@ -6,6 +6,8 @@ RED BLACK TREE PROPERTIES
 - Every simple downard path to a leaf contains the same number of black nodes
 - The longest path to a leaf is no more than twice the length of the shortest path to a leaf
 - Complexity is O(log N)
+
+REQUIRED OPERATOR OVERLOADS
 */
 
 #ifndef TABLE_HPP_
@@ -26,10 +28,6 @@ class Tree;
 
 template <typename T>
 std::ostream& operator<<(std::ostream&, const Tree<T>&);
-
-//// GLOBAL EXTERNAL FILENAME
-
-const char FILENAME[] = "matrices.txt";
 
 //////// NODE COLOR BIT
 
@@ -60,6 +58,7 @@ class Node
     Node(std::ifstream& inFile) : left(nullptr), right(nullptr), data(nullptr)
     {
         data = new T(inFile);
+        inFile.ignore(1, '\n');
     }
 
     //////// DESTRUCTOR 
@@ -90,13 +89,6 @@ class Node
     bool greaterThan(const K& other) const
     {
         return (data ? *data < other : false);
-    }
-
-    //True if this node's data is equal to |other|
-    template <typename K = T>
-    bool equal(const K& other) const
-    {
-        return (data ? *data == other : false);
     }
 
     //True if this node has no children
@@ -132,9 +124,10 @@ class Node
     //Write the data in this node to |outFile|
     void writeFile(std::ofstream& outFile) const
     {
-        if (data) data->writeFile(outFile);
+        //if (data) data->writeFile(outFile);
+        if (data) outFile << *data;
 
-        outFile << (left ? '1' : '0') << ' '
+        outFile << '\n' << (left ? '1' : '0') << ' '
         << (right ? '1' : '0') << '\n';
     }
 
@@ -198,9 +191,13 @@ class Tree
 
     //////// CONSTRUCTOR
 
-    Tree() : root(nullptr), nodeCount(0)
+    Tree() : root(nullptr), nodeCount(0), filename(nullptr) {}
+
+    //A |_filename| to an external database was provided
+    //Read in the data from the file, populating the tree
+    Tree(const char* _filename) : root(nullptr), nodeCount(0), filename(_filename)
     {
-        std::ifstream inFile(FILENAME);
+        std::ifstream inFile(filename);
         if (inFile)
         {
             inFile >> nodeCount;
@@ -217,18 +214,23 @@ class Tree
 
     ~Tree()
     {
-        std::ofstream outFile;
-        outFile.open(FILENAME);
-
-        if (root)
+        //If an external file was provided
+        //Write out to the file and recursively deallocate the tree
+        if (filename)
         {
-            outFile << nodeCount << ' ';
-            writeFile(root, outFile);
+            std::ofstream outFile(filename);
+            
+            if (root)
+            {
+                outFile << nodeCount << '\n';
+                writeFile(root, outFile);
+            }
+
+            outFile.clear();
+            outFile.close();
         }
 
-        outFile.clear();
-        outFile.close();
-
+        //Otherwise just deallocate
         delete root;
         root = nullptr;
     }
@@ -296,6 +298,10 @@ class Tree
 
     //The number of nodes / items in this tree
     size_t nodeCount;
+
+    //The filename of the external database if one was provided
+    //The data structure will read in / write out to the specified file
+    const char* filename;
 
     //////// PRIVATE FUNCTIONS 
 
@@ -544,7 +550,6 @@ class Tree
         int hasLeft, hasRight;
         inFile >> hasLeft;
         inFile >> hasRight;
-
         inFile.ignore(1, '\n');
 
         //Only traverse if there is at least 1 child
@@ -554,7 +559,7 @@ class Tree
 
     //Write all data into |outFile|
     //Deallocate the entire tree after
-    //The node and matrix write out to this file as well
+    //The node will write out the underlying data to the file using the overloaded operator <<
     static void writeFile(Node<T>*& root, std::ofstream& outFile)
     {
         if (!root) return;
@@ -564,8 +569,8 @@ class Tree
         writeFile(root->_left(), outFile);
         writeFile(root->_right(), outFile);
 
-        //delete root;
-        //root = nullptr;
+        delete root;
+        root = nullptr;
     }
 };
 

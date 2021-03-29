@@ -1,6 +1,7 @@
 #include "Interface.hpp"
 
 Interface::Interface() : recent(nullptr) {}
+Interface::Interface(const char* filename) : matrixTree(filename), recent(nullptr) {}
 
 //Prompt the user for input
 //Branch to different parts of the program based on the input

@@ -20,6 +20,7 @@ class Interface
 {
     public:
     Interface();
+    Interface(const char* filename);
 
     //Prompt the user for input
     //Branch to different parts of the program based on the input

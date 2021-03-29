@@ -6,6 +6,12 @@ std::ostream& operator<<(std::ostream& out, const Matrix& rhs)
     return out;
 }
 
+std::ofstream& operator<<(std::ofstream& outFile, const Matrix& rhs)
+{
+    rhs.writeFile(outFile);
+    return outFile;
+}
+
 bool Matrix::operator<(const Matrix& rhs) const
 {
     return identifier < rhs.identifier;
@@ -42,13 +48,16 @@ Matrix::Matrix(const Matrix& source)
 
 Matrix::Matrix(std::ifstream& inFile)
 {
+    //Read in the data
     inFile >> identifier;
     inFile >> rows;
     inFile >> columns;
 
+    //Ignore the newline after the first 3 entries
     inFile.ignore(1, '\n');
+
+    //Read in the matrix
     getline(inFile, matrixString, '#');
-    inFile.ignore(2, '\n');
 
     std::istringstream stream(matrixString);
     readIn(stream);
@@ -100,7 +109,7 @@ void Matrix::readIn(std::istream& stream)
 
 void Matrix::writeFile(std::ofstream& outFile) const
 {
-    outFile << identifier <<  ' ' << rows << ' ' << columns << '\n' << matrixString << "#\n";
+    outFile << identifier <<  ' ' << rows << ' ' << columns << '\n' << matrixString << '#';
 }
 
 //Make a copy of |source| into this matrix
