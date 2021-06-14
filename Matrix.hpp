@@ -1,3 +1,8 @@
+/*
+@Sean Siders
+sean.siders@icloud.com
+*/
+
 #ifndef MATRIX_HPP_ 
 #define MATRIX_HPP_
 
@@ -14,6 +19,9 @@ std::ofstream& operator<<(std::ofstream& outFile, const Matrix& rhs);
 class Matrix
 {
     public:
+    //// DEBUG 
+    void debugDisplay() const;
+
     friend std::ostream& operator<<(std::ostream& out, const Matrix& rhs);
     friend std::ofstream& operator<<(std::ofstream& outFile, const Matrix& rhs);
     bool operator<(const Matrix& rhs) const;
@@ -21,6 +29,16 @@ class Matrix
     bool operator<(const std::string& rhs) const;
     bool operator>(const std::string& rhs) const;
     Matrix& operator=(const Matrix& rhs);
+
+    //// MATHEMATIC MATRIX OPERATORS
+
+    //Addition
+    Matrix operator+(const Matrix& rhs) const;
+    Matrix& operator+=(const Matrix& rhs);
+
+    //Subtraction
+    Matrix operator-(const Matrix& rhs) const;
+    Matrix& operator-=(const Matrix& rhs);
 
     Matrix();
     Matrix(const Matrix& source);
@@ -38,6 +56,9 @@ class Matrix
     void overwrite(const Matrix& source);
 
     void writeFile(std::ofstream& outFile) const;
+
+    //True if the order of |other| matches to order of this matrix
+    bool orderMatch(const Matrix* other) const;
 
     private:
     //The user-defined identifier that is related to this matrix

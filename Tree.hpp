@@ -1,4 +1,14 @@
 /*
+This data structure is a Red-Black Tree, which is used in this program to store the matrices in dynamic memory. This
+program uses an external file to store matrices and operations upon exiting the program. The tree will read in and write
+out in pre-order traversal. The underlying data is responsible for writing out and reading in its own data.
+
+READING IN FROM THE DATAFILE
+A parameterized constructor needs to take in a std::ifstream& where data can then be read in from the abstraction.
+
+WRITING OUT FROM THE DATAFILE
+The std::ofstream& operator<< needs to be overloaded for underlying data to write data out to the datafile.
+
 RED BLACK TREE PROPERTIES
 - The root is always black
 - All null children are considered black
@@ -8,6 +18,12 @@ RED BLACK TREE PROPERTIES
 - Complexity is O(log N)
 
 REQUIRED OPERATOR OVERLOADS
+bool operator< | bool operator> : for sorting operations
+std::ostream& operator<< : for displaying from this tree
+std::ofstream& opeartor<< : for writing out to the external datafile
+
+@Sean Siders
+sean.siders@icloud.com
 */
 
 #ifndef TABLE_HPP_
@@ -124,7 +140,6 @@ class Node
     //Write the data in this node to |outFile|
     void writeFile(std::ofstream& outFile) const
     {
-        //if (data) data->writeFile(outFile);
         if (data) outFile << *data;
 
         outFile << '\n' << (left ? '1' : '0') << ' '
@@ -231,6 +246,7 @@ class Tree
         }
 
         //Otherwise just deallocate
+        //Recursive dellocation occurs in the Node destructor
         delete root;
         root = nullptr;
     }

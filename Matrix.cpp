@@ -1,5 +1,20 @@
 #include "Matrix.hpp"
 
+void Matrix::debugDisplay() const
+{
+    std::cout << '\n';
+
+    for (size_t r = 0; r < rows; ++r)
+    {
+        for (size_t c = 0; c < columns; ++c)
+            std::cout << matrix[r][c] << ' ';
+
+        std::cout << '\n';
+    }
+
+    std::cout << '\n';
+}
+
 std::ostream& operator<<(std::ostream& out, const Matrix& rhs)
 {
     rhs.display(out);
@@ -35,6 +50,76 @@ bool Matrix::operator>(const std::string& rhs) const
 Matrix& Matrix::operator=(const Matrix& rhs)
 {
     if (this != &rhs) copy(rhs);
+
+    return *this;
+}
+
+Matrix Matrix::operator+(const Matrix& rhs) const
+{
+    //Make a copy of this matrix
+    Matrix result(*this);
+
+    //Add |rhs|
+    result += rhs;
+
+    return result;
+}
+
+//TODO check the orders of the matrices (exception)
+Matrix& Matrix::operator+=(const Matrix& rhs)
+{
+    //Reset the matrix string
+    matrixString.clear();
+
+    for (size_t r = 0; r < rows; ++r)
+    {
+        for (size_t c = 0; c < columns; ++c)
+        {
+            matrix[r][c] += rhs.matrix[r][c];
+
+            //Append entry to the string
+            //TODO implement toString to handle non-floats
+            matrixString += std::to_string(matrix[r][c]);
+
+            //If this is the last column, add a newline to the string
+            //Otherwise add a space
+            matrixString += (1 + c == columns) ? '\n' : ' ';
+        }
+    }
+
+    return *this;
+}
+
+Matrix Matrix::operator-(const Matrix& rhs) const
+{
+    //Make a copy of this matrix
+    Matrix result(*this);
+
+    //Subtract |rhs|
+    result -= rhs;
+
+    return result;
+}
+
+Matrix& Matrix::operator-=(const Matrix& rhs)
+{
+    //Reset the matrix string
+    matrixString.clear();
+
+    for (size_t r = 0; r < rows; ++r)
+    {
+        for (size_t c = 0; c < columns; ++c)
+        {
+            matrix[r][c] -= rhs.matrix[r][c];
+
+            //Append entry to the string
+            matrixString += std::to_string(matrix[r][c]);
+
+            //If this is the last column, add a newline to the string
+            //Otherwise add a space
+            matrixString += (1 + c == columns) ? '\n' : ' ';
+        }
+    }
 
     return *this;
 }
@@ -149,3 +234,15 @@ void Matrix::clear()
     delete [] matrix;
     matrix = nullptr;
 }
+
+//True if the order of |other| matches to order of this matrix
+//Also false if |other| is null
+bool Matrix::orderMatch(const Matrix* other) const
+{
+    return (other && other->rows == rows && other->columns == columns);
+}
+
+
+
+
+
