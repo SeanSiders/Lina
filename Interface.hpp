@@ -15,25 +15,27 @@ sean.siders@icloud.com
 #include <sstream>
 #include "Matrix.hpp"
 #include "Tree.hpp"
+#include "ExceptionHandler.hpp"
 
 //This enum is used to efficiently branch the program to different processes
 enum Commands
 {
-    INVALID_CMD, //The command was invalid
     DEFINE, //The user wants to define a new variable
     DISPLAY, //The user wants to display 1 or more matrices
     CLEAR, //The user wants to clear the screen
-    OPERATE, //The user wants to apply operations on the matrices
+    OPERATE, //The user may be trying to apply 1 or more matrix operations
+    HELP, //The user wants help on how to use Lina
     QUIT //Terminate the program
 };
 
 //This enum will be used to perform various operations on the matrices
 enum Operators
 {
-    INVALID_OP,
-    PLUS,
-    MINUS,
-    MULTIPLY
+    INVALID_OP, //Operater does not exist
+    PLUS, //The user wants to add matrices
+    MINUS, //The user wants to subtract matrices
+    MULTIPLY, //The user wants to multiply matrices
+    ASSIGN //The user wants to assign an identifier to the resulting matrix
 };
 
 class Interface
@@ -58,9 +60,6 @@ class Interface
     //Determine which command the user entered, return the respective |Commands|
     static Commands evaluateCommand(const std::string& command);
 
-    //Prompt the user that their |command| was not valid
-    static void invalidCommand(const std::string& command);
-
     //Count the number of |columns| and |rows| in |matrixString|
     //Check that each entrie contains numeric expressions
     //Return false if any rows do not match the 1st row's column count, or an entrie is non-numeric
@@ -79,20 +78,34 @@ class Interface
 
     //Print 100 newline characters
     void clearScreen() const;
+    
+    //Prompt the user with instructions on how to use Lina
+    void helpPrompt() const;
 
-    //Attempt operations on defined matrices based on user input
-    //If the input is valid, display the resulting calculation
-    //This algorithm will recursively continue until either invalid input occurs or the end of the stream is reached
-    //|result| will contain the resulting matrix if successful
-    bool operate(std::istringstream& stream, Matrix*& result) const;
+    void operate(const std::string& lhsKey, std::istringstream& stream);
+
+    //Returns the resulting matrix, used in |assign|
+    void operate(const Matrix* lhs, const Operators op, const Matrix* rhs, Matrix*& result, const std::string& resultKey);
 
     //Evaluate which operator the user input, then return the cooresponding enum
     Operators evaluateOperator(const std::string& operatorString) const;
 
     //Attempt to add two matrices |lhs| and |rhs|
     //If |positive| is false, |rhs| will be subracted from |lhs|
-    //If the matries are not of the same order, addition cannot occur, return false
-    bool add(const Matrix* lhs, const Matrix* rhs, const bool positive, Matrix*& result) const;
+    //If the matrices are not of the same order, addition cannot occur, an exception is thrown
+    static void add(const Matrix* lhs, const Matrix* rhs, const bool positive);
+
+    //Attempt to multiple two matrices |lhs| and |rhs|
+    //If the columns of |lhs| do not match the rows of |rhs|, multiplication cannot occur, return false
+    static void multiply(const Matrix* lhs, const Matrix* rhs);
+
+    //Attempt to assign |result| as the resulting matrix from an operation that begins with |lhs|
+    //Proceed to read in the operator, and the righ operand matrix
+    //Will throw an exception if :
+    //  - The operator is invalid 
+    //  - The operator is another assignment (=)
+    //  - The right operand identifier does not exist
+    void assign(Matrix*& result, const std::string& resultKey, const Matrix* lhs, std::istringstream& stream);
 
     //Check if |key| is already bound to an existing matrix
     //If it is, ask whether the user wants to overwrite with a new matrix
@@ -105,7 +118,7 @@ class Interface
 
     //Get either a 'y' for "yes" or 'n' for "no"
     //If yes, return true
-    bool getYesNo();
+    bool getYesNo() const;
 };
 
 #endif //INTERFACE_HPP_

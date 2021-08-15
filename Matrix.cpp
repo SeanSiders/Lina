@@ -65,7 +65,6 @@ Matrix Matrix::operator+(const Matrix& rhs) const
     return result;
 }
 
-//TODO check the orders of the matrices (exception)
 Matrix& Matrix::operator+=(const Matrix& rhs)
 {
     //Reset the matrix string
@@ -78,7 +77,6 @@ Matrix& Matrix::operator+=(const Matrix& rhs)
             matrix[r][c] += rhs.matrix[r][c];
 
             //Append entry to the string
-            //TODO implement toString to handle non-floats
             matrixString += std::to_string(matrix[r][c]);
 
             //If this is the last column, add a newline to the string
@@ -124,11 +122,99 @@ Matrix& Matrix::operator-=(const Matrix& rhs)
     return *this;
 }
 
+Matrix Matrix::operator*(const Matrix& rhs) const
+{
+    //Make a copy of this matrix
+    Matrix result(*this);
+
+    //Multiply with |rhs|
+    result *= rhs;
+
+    return result;
+}
+
+Matrix& Matrix::operator*=(const Matrix& rhs)
+{
+    //Reset the matrix string
+    matrixString.clear();
+
+    //Get product matrix and reassign |matrix|
+    matrix = multiply(rhs);
+
+    return *this;
+}
+
+//Multiply the current |matrix| with |other| as a |product| matrix
+//Simultaneously deallocate |matrix| and modify |matrixString|
+//Return the |product| matrix
+double** Matrix::multiply(const Matrix& rhs)
+{
+    //Make a new matrix with the new order
+    double** product = new double*[rows];
+
+    //Get the column magnitude for the product matrix
+    size_t newColumns = rhs.columns;
+
+    //To hold the product sum of each traversal
+    double productSum = 0.0;
+
+    //Traverse the rows of this matrix
+    for (size_t r = 0; r < rows; ++r)
+    {
+        //Allocate product matrix row
+        product[r] = new double[newColumns];
+
+        //Traverse the columns of |rhs|
+        for (size_t i = 0; i < newColumns; ++i)
+        {
+            productSum = 0.0;
+
+            //Traverse the columns of this matrix and rows of |rhs|
+            for (size_t j = 0; j < columns; ++j)
+            {
+                //Sum the product of columns of this matrix and rows of |rhs|
+                productSum += matrix[r][j] * rhs.matrix[j][i];
+            }
+
+            product[r][i] = productSum;
+
+            //Append entry to the string
+            matrixString += std::to_string(product[r][i]);
+
+            //If this is the last column, add a newline to the string
+            //Otherwise add a space
+            matrixString += (1 + i == newColumns) ? '\n' : ' ';
+        }
+
+        //Dellocate row
+        delete [] matrix[r];
+        matrix[r] = nullptr;
+    }
+
+    //Set the new columns
+    columns = newColumns;
+
+    //Deallocate the old matrix
+    delete [] matrix;
+    matrix = nullptr;
+
+    return product;
+}
+
 Matrix::Matrix() : rows(0), columns(0), matrix(nullptr) {}
 
 Matrix::Matrix(const Matrix& source)
 {
     copy(source);
+}
+
+Matrix::Matrix(const Matrix& source, const std::string& identifier) : identifier(identifier)
+{
+    matrixString = source.matrixString;
+    rows = source.rows;
+    columns = source.columns;
+
+    copyMatrix(source);
 }
 
 Matrix::Matrix(std::ifstream& inFile)
@@ -168,11 +254,29 @@ void Matrix::display(std::ostream& out) const
     out << '\"' << identifier << "\"\n" << matrixString;
 }
 
+//Display only the matrix |identifier|
+void Matrix::displayIdentifier(std::ostream& out) const
+{
+    out << '\"' << identifier << '\"';
+}
+
 //Clear the current matrix and make a copy of |source| into this matrix
 void Matrix::overwrite(const Matrix& source)
 {
     clear();
     copy(source);
+}
+
+void Matrix::overwrite(const Matrix& source, const std::string& newIdentifier)
+{
+    clear();
+
+    identifier = newIdentifier;
+    matrixString = source.matrixString;
+    rows = source.rows;
+    columns = source.columns;
+
+    copyMatrix(source);
 }
 
 //Allocate the |matrix| to the dimensions of |rows| x |columns|
@@ -192,6 +296,7 @@ void Matrix::readIn(std::istream& stream)
     }
 }
 
+//Write the contents of of this matrix out to |outFile|
 void Matrix::writeFile(std::ofstream& outFile) const
 {
     outFile << identifier <<  ' ' << rows << ' ' << columns << '\n' << matrixString << '#';
@@ -205,6 +310,12 @@ void Matrix::copy(const Matrix& source)
     rows = source.rows;
     columns = source.columns;
 
+    copyMatrix(source);
+}
+
+//Copy the |matrix| from |source|
+void Matrix::copyMatrix(const Matrix& source)
+{
     matrix = new double*[rows];
     for (size_t r = 0; r < rows; ++r)
     {
@@ -221,7 +332,12 @@ void Matrix::clear()
 {
     identifier.clear();
     matrixString.clear();
+    clearMatrix();
+}
 
+//Deallocate the |matrix| and set to null
+void Matrix::clearMatrix()
+{
     for (size_t r = 0; r < rows; ++r)
     {
         delete [] matrix[r];
@@ -242,7 +358,9 @@ bool Matrix::orderMatch(const Matrix* other) const
     return (other && other->rows == rows && other->columns == columns);
 }
 
-
-
-
-
+//For checking whether this matrix can multiply with |other|
+//True if the degree of columns of this matrix match the degree of rows of |other|
+bool Matrix::multiplyCheck(const Matrix* other) const
+{
+    return (other && columns == other->rows);
+}

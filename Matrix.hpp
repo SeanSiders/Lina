@@ -10,6 +10,7 @@ sean.siders@icloud.com
 #include <sstream>
 #include <fstream>
 
+//// FORWARD DECLARATION
 class Matrix;
 
 //// GLOBAL OPERATOR OVERLOADS
@@ -40,8 +41,13 @@ class Matrix
     Matrix operator-(const Matrix& rhs) const;
     Matrix& operator-=(const Matrix& rhs);
 
+    //Multiplication
+    Matrix operator*(const Matrix& rhs) const;
+    Matrix& operator*=(const Matrix& rhs);
+
     Matrix();
     Matrix(const Matrix& source);
+    Matrix(const Matrix& source, const std::string& identifier);
     Matrix(std::ifstream& inFile);
     ~Matrix();
 
@@ -52,13 +58,29 @@ class Matrix
     //Display the matrix |identifier| followed by the |matrixString|
     void display(std::ostream& out = std::cout) const;
 
+    //Display only the matrix |identifier|
+    void displayIdentifier(std::ostream& out = std::cout) const;
+
     //Clear the current matrix and make a copy of |source| into this matrix
     void overwrite(const Matrix& source);
+    void overwrite(const Matrix& source, const std::string& newIdentifier);
 
+    //Write the contents of of this matrix out to |outFile|
     void writeFile(std::ofstream& outFile) const;
 
     //True if the order of |other| matches to order of this matrix
     bool orderMatch(const Matrix* other) const;
+
+    //For checking whether this matrix can multiply with |other|
+    //True if the degree of columns of this matrix match the degree of rows of |other|
+    bool multiplyCheck(const Matrix* other) const;
+
+    //Set all members to initial values
+    //Deallocate the |matrix|
+    void clear();
+
+    //Deallocate the |matrix| and set to null
+    void clearMatrix();
 
     private:
     //The user-defined identifier that is related to this matrix
@@ -84,9 +106,13 @@ class Matrix
     //Make a copy of |source| into this matrix
     void copy(const Matrix& source);
 
-    //Set all members to initial values
-    //Deallocate the |matrix|
-    void clear();
+    //Copy the |matrix| from |source|
+    void copyMatrix(const Matrix& source);
+
+    //Multiply the current |matrix| with |other| as a |product| matrix
+    //Simultaneously deallocate |matrix| and modify |matrixString|
+    //Return the |product| matrix
+    double** multiply(const Matrix& rhs);
 };
 
 #endif //MATRIX_HPP_

@@ -46,22 +46,26 @@ bool Interface::run()
     //Determine how the program will respond to the initial command from input
     switch (evaluateCommand(initialCommand))
     {
-        case INVALID_CMD : invalidCommand(buffer); break;
-
         case DEFINE : define(stream); break;
 
         case DISPLAY : display(stream); break;
 
         case CLEAR : clearScreen(); break;
 
-        case OPERATE :
-        {
-            Matrix* result = nullptr;
-            if (!operate(stream, result)) invalidCommand(buffer);
-            break;
-        }
+        case HELP : helpPrompt(); break;
 
         case QUIT : return false;
+
+        case OPERATE :
+        {
+            try { operate(initialCommand, stream); }
+
+            catch (const ExceptionHandler& ex)
+            {
+                std::cout << ex << "\n\n";
+            }
+            break;
+        }
 
         default : break;
     }
@@ -72,29 +76,23 @@ bool Interface::run()
 //Determine which command the user entered, return the respective |Commands|
 Commands Interface::evaluateCommand(const std::string& command)
 {
-    // PROGRAM EXIT
-    if ("q" == command || "quit" == command) return QUIT;
-
     //Variable declaration
-    if (("d" == command || "def" == command || "define" == command)) return DEFINE;
+    if (("def" == command || "define" == command)) return DEFINE;
 
     //Display 1 or more matrices
     if (("disp" == command || "display" == command)) return DISPLAY;
 
     //Clear the console
-    if (("c" == command || "clear" == command)) return CLEAR;
+    if ("clear" == command) return CLEAR;
 
-    //Attempt matrix operation
-    if (("op" == command || "operate" == command)) return OPERATE;
+    //Prompt the user with instructions on using Lina
+    if ("help" == command) return HELP;
 
-    //Invalid command
-    return INVALID_CMD;
-}
+    //PROGRAM EXIT
+    if ("q" == command || "quit" == command) return QUIT;
 
-//Prompt the user that their |command| was not valid
-void Interface::invalidCommand(const std::string& command)
-{
-    std::cout << "INVALID COMMAND : \"" << command << "\"\n\n";
+    //The user may be trying to apply 1 or more operations
+    return OPERATE;
 }
 
 //Count the number of |columns| and |rows| in |matrixString|
@@ -178,6 +176,18 @@ void Interface::define(std::istringstream& stream)
     }
     else stream >> key;
 
+    //Check that |key| is not a command id within the program
+    //|OPERATE| is the default return when the input is unique
+    while (evaluateCommand(key) != OPERATE)
+    {
+        std::cout << '\"' << key << "\" is not available to be a matrix id, this is a Lina command id\n"
+        << "Lina command ids\n"
+        << "clear, def, define, disp, display, help, q, quit\n"
+        << "Please choose another id > ";
+
+        getline(std::cin, key, '\n');
+    }
+
     //Check if the key is already defined
     //If it is, ask them if they would like to overwrite
     if (overwriteCheck(key))
@@ -221,61 +231,99 @@ void Interface::clearScreen() const
     for (size_t i = 0; i < 100; ++i) std::cout << '\n';
 }
 
-//1) Retrieve left operand by the identifier
-//2) Read in the operator
-//3) Retieve Right operand by the identifier
-//4) Perform operation
-//If a retrieval is unsuccessful, or the operation is invalid, return false
-//This algorithm will recursively continue until either invalid input occurs or the end of the stream is reached
-//The resulting matrix will be allocated in |result|, where the user can choose to link it to an identifier
-bool Interface::operate(std::istringstream& stream, Matrix*& result) const
+void Interface::helpPrompt() const
 {
-    //To store the operand identifiers read in from |stream|
-    std::string identifier;
+    //Prompt the user with instructions on how to use Lina
+    std::cout << "\nLina\n\n"
+    << "==== BASIC COMMANDS ====\n\n"
+    << "\"define\" OR \"def\" (*optional arg) -- define a new matrix with a unique *id\n"
+    << "\"display\" OR \"disp\" (*optional arg(s)) -- display all matrices or the provided *id(s) separated by a single space\n"
+    << "\"clear\" -- clear the terminal\n"
+    << "\"help\" (*optional arg) -- display this prompt\n"
+    << "\"quit\" OR \"q\" -- terminate the program, saving all defined matrices\n\n"
 
+    << "==== MATRIX OPERATIONS ====\n\n"
+
+    << "ADDITION OR SUBTRACTION\n"
+    << "id1 + id2 OR id1 - id2\n"
+    << "- all matrices in addition or subtraction must be of the same order\n\n"
+
+    << "Multiplication (Dot Product)\n"
+    << "id1 * id2\n"
+    << "- The magnitude of columns in the left operand must equal the magnitude of rows in the right operand\n\n";
+}
+
+//If the user is attempting an operation |lhsKey| will be:
+//  1) A new matrix identifier for the resulting matrix (the operator to follow in |stream| is '=')
+//  2) An existing matrix identifier for the resulting matrix, for which overwrite will occur
+//  3) The Left operand of the matrix operation
+//      * The resulting matrix will just be displayed and not assigned an identifier or stored in the |matrixTree|
+void Interface::operate(const std::string& lhsKey, std::istringstream& stream)
+{
     //To store the operator read in from |stream|
     std::string op;
 
-    //Attempt to read in left operand identifier
-    stream >> identifier;
+    //To store the right operand identifier read in from |stream|
+    std::string rhsKey;
 
-    if (stream.eof()) return true;
+    //Attempt to read in an operator from |stream|
+    stream >> op;
+
+    //Attempt to read in the right operand from |stream|
+    stream >> rhsKey;
 
     //Attempt |lhs| retrieval on first call
     //For any following call |lhs| will be the |result| of the previous operation
-    Matrix* lhs = (result ? result : matrixTree.retrieve<std::string>(identifier));
-    if (!lhs) return false;
-
-    //Attempt to read in the operator
-    stream >> op;
-
-    //Attempt to read in right operand identifier
-    stream >> identifier;
+    //|lhs| may or may not be an existing matrix
+    Matrix* lhs = matrixTree.retrieve<std::string>(lhsKey);
 
     //Attempt |rhs| retrieval
-    Matrix* rhs = matrixTree.retrieve<std::string>(identifier);
-    if (!rhs) return false;
+    //|rhs| must be an existing matrix
+    Matrix* rhs = matrixTree.retrieve<std::string>(rhsKey);
+    if (!rhs) throw ExceptionHandler("INVALID COMMAND : enter \"help\" for all valid commands");
 
-    //TODO exception handling to specify the failed operation
-
+    //Evaluate the operater read in, if it is valid, attempt the operation
     switch(evaluateOperator(op))
     {
-        case INVALID_OP : return false;
+        case INVALID_OP : throw ExceptionHandler("INVALID OPERATOR : enter \"help\" for all valid commands");
 
+        case PLUS : add(lhs, rhs, true); break;
+
+        case MINUS : add(lhs, rhs, false); break;
+
+        case MULTIPLY : multiply(lhs, rhs); break;
+
+        case ASSIGN : assign(lhs, lhsKey, rhs, stream); break;
+
+        default : return;
+    }
+}
+
+//Returns the resulting matrix, used in |assign|
+void Interface::operate(const Matrix* lhs, const Operators op, const Matrix* rhs, Matrix*& result, const std::string& resultKey)
+{
+    switch(op)
+    {
         case PLUS :
-            if (!add(lhs, rhs, true, result)) return false;
-            break;
+        {
+            if (result) result->overwrite((*lhs) + (*rhs), resultKey);
+            else result = new Matrix((*lhs) + (*rhs), resultKey);
+        }
 
         case MINUS :
-            if (!add(lhs, rhs, false, result)) return false;
-            break;
+        {
+            if (result) result->overwrite((*lhs) + (*rhs), resultKey);
+            else result = new Matrix((*lhs) + (*rhs), resultKey);
+        }
 
-        case MULTIPLY : break;
+        case MULTIPLY :
+        {
+            if (result) result->overwrite((*lhs) + (*rhs), resultKey);
+            else result = new Matrix((*lhs) + (*rhs), resultKey);
+        }
 
-        default : return false;
+        default : break;
     }
-
-    return operate(stream, result);
 }
 
 //Evaluate which operator the user input, then return the cooresponding enum
@@ -289,6 +337,9 @@ Operators Interface::evaluateOperator(const std::string& operatorString) const
 
     //Attempt matrix multiplication
     if ("*" == operatorString) return MULTIPLY;
+
+    //Attempt matrix assignment to the following operation
+    if ("=" == operatorString) return ASSIGN;
     
     //Invalid command
     return INVALID_OP;
@@ -296,39 +347,73 @@ Operators Interface::evaluateOperator(const std::string& operatorString) const
 
 //Attempt to add two matrices |lhs| and |rhs|
 //If |positive| is false, |rhs| will be subracted from |lhs|
-//If the matries are not of the same order, addition cannot occur, return false
-bool Interface::add(const Matrix* lhs, const Matrix* rhs, const bool positive, Matrix*& result) const
+//If the matrices are not of the same order, addition cannot occur, an exception is thrown
+void Interface::add(const Matrix* lhs, const Matrix* rhs, const bool positive)
 {
     //If |lhs| and |rhs| are not of the same order
-    if (!lhs->orderMatch(rhs)) return false;
+    if (!lhs || !lhs->orderMatch(rhs))
+        throw InvalidOperation(lhs, (positive ? '+' : '-'), rhs, "Matrices must be of the same order for addition / subtraction");
 
-    //Matrix addition
-    if (positive)
+    std::cout << (positive ? ((*lhs) + (*rhs)) : ((*lhs) - (*rhs)));
+}
+
+//Attempt to multiple two matrices |lhs| and |rhs|
+//If the columns of |lhs| do not match the rows of |rhs|, multiplication cannot occur
+void Interface::multiply(const Matrix* lhs, const Matrix* rhs)
+{
+    if (!lhs || !lhs->multiplyCheck(rhs))
+        throw InvalidOperation(lhs, '*', rhs,
+        "The degree of columns in left matrix must match the degree of rows in the right matrix for multiplication");
+
+    std::cout << ((*lhs) * (*rhs));
+}
+
+//Attempt to do a matrix operation with |lhs| and the |rhs| which is yet to be read in from |stream|
+//If |result| is already allocated, the user will have to decide if they want to overwrite
+//If the operation is successful store the resulting matrix in |result|
+void Interface::assign(Matrix*& result, const std::string& resultKey, const Matrix* lhs, std::istringstream& stream)
+{
+    if (!lhs) throw ExceptionHandler("ASSIGNMENT FAILED : the left operand identifier was not found");
+
+    //To store the operator read in from |stream|
+    std::string op;
+
+    //To store the identifier for the |rhs| matrix read in from |stream|
+    std::string rhsKey;
+
+    stream >> op;
+    Operators eOP = evaluateOperator(op);
+
+    //Invalid operator input cases
+    if (eOP == INVALID_OP || eOP == ASSIGN) throw ExceptionHandler("ASSIGNMENT FAILED : operator invalid");
+
+    stream >> rhsKey;
+
+    const Matrix* rhs = matrixTree.retrieve<std::string>(rhsKey);
+    if (!rhs) throw ExceptionHandler("ASSIGNMENT FAILED : the right operand identifier was not found");
+
+    //If |result| is allocated, ask the user if they want to overwrite
+    if (result)
     {
-        //For the first operation a new matrix must be allocated
-        if (!result) result = new Matrix(*lhs + *rhs);
+        std::cout << "The identifier \"" << resultKey << '\"' << " is already assigned to a matrix\n"
+        << "would you like to overwrite?";
 
-        else *result += *rhs;
+        if (getYesNo())
+        {
+            operate(lhs, eOP, rhs, result, resultKey);
+            std::cout << "\nThe matrix \"" << resultKey << "\" was overwritten\n" << *result;
+        }
 
-        std::cout << "\n\nRESULT\n\n";
-        result->debugDisplay();
+        else std::cout << "\nThe matrix \"" << resultKey << "\" was not overwritten\n\n";
     }
 
-    //Matrix subtraction 
     else
     {
-        //For the first operation a new matrix must be allocated
-        if (!result) result = new Matrix(*lhs - *rhs);
-
-        else *result -= *rhs;
-
-        std::cout << "\n\nRESULT\n\n";
-        result->debugDisplay();
+        operate(lhs, eOP, rhs, result, resultKey);
+        std::cout << "NEW MATRIX DEFINED BY CALCULATION\n" << *result;
+        matrixTree.insert(*result);
+        delete result; //TODO : remove conditional allocation
     }
-    
-    delete result;
-
-    return true;
 }
 
 //Check if |key| is already bound to an existing matrix
@@ -414,12 +499,11 @@ bool Interface::getMatrixInput(const std::string& key, std::string& matrixString
 
 //Get either a 'y' for "yes" or 'n' for "no"
 //If yes, return true
-bool Interface::getYesNo()
+bool Interface::getYesNo() const
 {
     std::string buffer;
 
-    std::cout << " (y/n) > ";
-    getline(std::cin, buffer, '\n');
+    std::cout << " (y/n) > "; getline(std::cin, buffer, '\n');
     char response = std::tolower(buffer[0]);
 
     while ('y' != response && 'n' != response)
@@ -431,4 +515,3 @@ bool Interface::getYesNo()
 
     return ('y' == response);
 }
-
